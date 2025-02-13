@@ -7,6 +7,16 @@
         <FolderActions :hideDelete="true" @refresh="refreshTree" />
       </div>
 
+      <div class="mt-3 ml-6 mr-4">
+        <input
+          v-model="folderName"
+          ref="nameInput"
+          @keyup.enter="handleSearch"
+          placeholder="Seach folder by name"
+          class="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+
       <div v-if="loading" class="p-4 text-gray-500">Loading folders...</div>
       <div v-else-if="error" class="p-4 text-red-500">{{ error }}</div>
       <FolderTree
@@ -40,7 +50,6 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
 import axios from "axios";
-import { PlusIcon } from "@heroicons/vue/24/outline";
 import FolderTree from "./components/FolderTree.vue";
 import FolderContents from "./components/FolderContents.vue";
 import FolderActions from "./components/FolderActions.vue";
@@ -56,6 +65,9 @@ const parentId = ref<string | null>(null);
 const currentChildren = ref<Folder[]>([]);
 const currentChildrenLoading = ref(false);
 const currentChildrenError = ref<string | null>(null);
+
+const folderName = ref("");
+const nameInput = ref<HTMLInputElement | null>(null);
 
 const refreshTree = async () => {
   loading.value = true;
@@ -88,6 +100,26 @@ const handleFolderSelect = async (folder: NestedFolder) => {
     );
     currentChildren.value = data;
     parentId.value = folder.id;
+  } catch (err) {
+    currentChildrenError.value = "Failed to load folder contents";
+  } finally {
+    currentChildrenLoading.value = false;
+  }
+};
+
+const handleSearch = async () => {
+  if (!folderName.value.trim()) {
+    return refreshTree();
+  }
+
+  currentChildrenLoading.value = true;
+  currentChildrenError.value = null;
+  try {
+    const { data } = await axios.post<NestedFolder[]>(
+      `${baseUrl}/folders/search`,
+      { name: folderName.value }
+    );
+    folderTree.value = data;
   } catch (err) {
     currentChildrenError.value = "Failed to load folder contents";
   } finally {
